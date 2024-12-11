@@ -1,0 +1,199 @@
+<section class="cart py-16">
+  <% if (session.cart) { %>
+  <div class="order container mx-auto xl:w-1/2">
+    <div class="flex items-center border-b border-gray-300 pb-4">
+      <img src="/img/cart-black.png" alt="cart-icon" />
+      <h1 class="font-bold ml-4 text-2xl">Order Summary</h1>
+    </div>
+    <div class="pizza-list">
+      <% for (let pizza of Object.values(session.cart.items)) { %>
+      <div class="flex items-center my-8">
+        <img
+          class="w-24"
+          src="/img/<%= pizza.item.image %>"
+          alt="<%= pizza.item.name %>"
+        />
+        <div class="flex-1 ml-4">
+          <h1 class="font-bold"><%= pizza.item.name %></h1>
+          <span class="text-sm text-gray-500"><%= pizza.item.size %></span>
+        </div>
+        <div class="flex items-center">
+          <!-- Số lượng -->
+          <input
+            class="border border-gray-300 w-16 text-center mx-2"
+            type="number"
+            value="<%= pizza.qty %>"
+            data-id="<%= pizza.item._id %>"
+            data-price="<%= pizza.item.price %>"
+            min="1"
+            oninput="updateQuantity(event)"
+          />
+          <button
+            class="text-red-500 ml-2"
+            onclick="removeItem('<%= pizza.item._id %>')"
+          >
+            Remove
+          </button>
+        </div>
+        <span class="font-bold text-lg ml-4"
+          >$<%= (pizza.item.price * pizza.qty).toFixed(2) %></span
+        >
+      </div>
+      <% } %>
+    </div>
+    <hr />
+    <div class="text-right py-4">
+      <div>
+        <span class="text-lg font-bold">Total Amount:</span>
+        <span class="amount text-2xl font-bold ml-2"
+          >$<%= session.cart.totalPrice.toFixed(2) %></span
+        >
+      </div>
+      <% if (user) { %>
+      <div>
+        <form action="/orders" method="POST" class="mt-12" id="payment-form">
+          <div class="relative w-1/2 ml-auto mb-4">
+            <select
+              id="paymentType"
+              name="paymentType"
+              class="block appearance-none w-full bg-white border border-gray-400 hover:border-gray-500 px-4 py-2 pr-8 rounded leading-tight focus:outline-none focus:shadow-outline"
+            >
+              <option value="cod">Cash on delivery</option>
+              <!-- <option value="card">Pay with card</option> -->
+            </select>
+          </div>
+          <input
+            name="phone"
+            class="border border-gray-400 p-2 w-1/2 mb-4"
+            type="text"
+            placeholder="Phone number"
+          />
+          <input
+            name="address"
+            class="border border-gray-400 p-2 w-1/2"
+            type="text"
+            placeholder="Address"
+          />
+          <br />
+          <button
+            id="orderButton"
+            class="btn-primary px-6 py-2 rounded-full text-white font-bold mt-6"
+            type="submit"
+            disabled
+          >
+            Order Now
+          </button>
+        </form>
+      </div>
+      <% } else { %>
+      <a
+        href="/login"
+        class="inline-block cursor-pointer btn-primary px-6 py-2 rounded-full text-white font-bold mt-6"
+        >Login to continue</a
+      >
+      <% } %>
+    </div>
+  </div>
+  <% } else { %>
+  <div class="empty-cart py-16">
+    <div class="container mx-auto text-center">
+      <h1 class="text-3xl font-bold mb-2">Cart Empty 😕</h1>
+      <p class="text-gray-500 text-lg mb-12">
+        You probably haven't ordered a pizza yet. <br />
+        To order a pizza, go to the main page.
+      </p>
+      <img class="w-2/5 mx-auto" src="/img/empty-cart.png" alt="empty-cart" />
+      <a
+        href="/"
+        class="inline-block px-6 py-2 rounded-full btn-primary text-white font-bold mt-12"
+        >Go back</a
+      >
+    </div>
+  </div>
+  <% } %>
+</section>
+<script>
+  // Hàm cập nhật số lượng
+  function updateQuantity(event) {
+    const input = event.target;
+    const productId = input.getAttribute("data-id");
+    const newQty = input.value;
+
+    fetch("/cart/update-quantity", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ _id: productId, qty: newQty }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        location.reload();
+      })
+      .catch((err) => console.error(err));
+  }
+
+  // Hàm xóa sản phẩm
+  function removeItem(productId) {
+    fetch("/cart/remove", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ _id: productId }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        location.reload();
+      })
+      .catch((err) => console.error(err));
+  }
+
+  const phoneInput = document.querySelector('input[name="phone"]');
+  const orderButton = document.getElementById("orderButton");
+
+  // Hàm kiểm tra số điện thoại hợp lệ
+  function validatePhone() {
+    const phoneValue = phoneInput.value.trim();
+    const phoneRegex = /^\d{10}$/; // Định dạng: đúng 12 số
+
+    // Kiểm tra số điện thoại và thay đổi trạng thái của ô nhập liệu
+    if (phoneRegex.test(phoneValue)) {
+      phoneInput.classList.remove("invalid"); // Gỡ bỏ viền đỏ
+      phoneInput.classList.add("valid"); // Thêm viền xanh
+      orderButton.disabled = false; // Bật nút "Order Now" nếu hợp lệ
+    } else {
+      phoneInput.classList.remove("valid"); // Gỡ bỏ viền xanh
+      phoneInput.classList.add("invalid"); // Thêm viền đỏ
+      orderButton.disabled = true; // Vô hiệu hóa nút "Order Now" nếu không hợp lệ
+    }
+  }
+
+  // Lắng nghe sự kiện nhập liệu vào ô điện thoại
+  phoneInput.addEventListener("input", validatePhone);
+</script>
+<style>
+  .btn-primary {
+    background-color: #fe5f1e; /* Màu xanh mặc định */
+    cursor: pointer;
+    transition: opacity 0.3s ease;
+  }
+  .btn-primary:disabled {
+    background-color: #fe5d1e2c; /* Cùng màu nhưng mờ hơn */
+    opacity: 0.5;
+    cursor: not-allowed; /* Hiển thị con trỏ bị vô hiệu hóa */
+  }
+
+  /* Màu viền bình thường */
+  input[type="text"] {
+    border: 1px solid #ccc; /* Màu viền mặc định */
+    padding: 0.5rem;
+    border-radius: 5px;
+  }
+
+  /* Màu viền đỏ khi không hợp lệ */
+  input[type="text"].invalid {
+    border-color: red; /* Viền đỏ khi không hợp lệ */
+    border-radius: 5px;
+  }
+</style>
